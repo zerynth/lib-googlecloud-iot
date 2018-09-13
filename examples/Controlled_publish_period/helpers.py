@@ -8,12 +8,9 @@ import json
 
 def load_key(key_file):
     mstream = open('resource://' + key_file)
-    pkey = bytearray()
-    while True:
-        rd = mstream.read(1)
-        if not rd:
-            break
-        pkey.append(rd[0])
+    pkey = bytearray(64)
+    for i in range(64):
+        pkey[i] = mstream.read(1)[0]
     return pkey
 
 def load_device_conf():

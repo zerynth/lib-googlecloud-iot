@@ -2,7 +2,7 @@
 # @Author: lorenzo
 # @Date:   2017-09-21 16:17:16
 # @Last Modified by:   Lorenzo
-# @Last Modified time: 2017-11-07 10:29:06
+# @Last Modified time: 2018-09-05 12:52:46
 
 """
 .. module:: iot
@@ -19,8 +19,14 @@ It allows to make your device act as a Google Cloud IoT Core Device which can be
 
 import json
 import ssl
+#-if !GOOGLECLOUD_HWJWT 
 import jwt
+#-endif
+#-if GOOGLECLOUD_LWMQTT
+from lwmqtt import mqtt
+#-else
 from mqtt import mqtt
+#-endif
 import timers
 
 class GCMQTTClient(mqtt.Client):
@@ -95,8 +101,8 @@ The Device class
             my_device.mqtt.loop()
     """
 
-    def __init__(self, project_id, cloud_region, registry_id, device_id, pkey, timestamp_fn, token_lifetime=60):
-        self.ctx = ssl.create_ssl_context(options=ssl.CERT_NONE) # should add root...
+    def __init__(self, project_id, cloud_region, registry_id, device_id, pkey, timestamp_fn, token_lifetime=60, custom_jwt=None):
+        self.ctx = ssl.create_ssl_context(options=ssl.SERVER_AUTH|ssl.CERT_NONE) # should add root...
         self.device_id = device_id
         self.project_id = project_id
         self.private_key = pkey
@@ -107,6 +113,15 @@ The Device class
 
         self._config_cbk = None
 
+        if custom_jwt is not None:
+            self._jwt_fn = custom_jwt
+        else:
+#-if GOOGLECLOUD_HWJWT
+            raise Exception
+#-else
+            self._jwt_fn = jwt.encode
+#-endif
+
     def _create_jwt(self, timestamp_diff = None):
         if timestamp_diff is None:
             timestamp = self.timestamp_fn()
@@ -114,6 +129,9 @@ The Device class
             timestamp = self._last_timestamp + timestamp_diff
         self._last_timestamp = timestamp
 
+#-if GOOGLECLOUD_HWJWT
+        return self._jwt_fn(timestamp, timestamp + 60*self.token_lifetime, self.project_id)
+#-else
         token = {
                 # The time that the token was issued at
                 'iat': timestamp,
@@ -122,11 +140,16 @@ The Device class
                 # The audience field should always be set to the GCP project id.
                 'aud': self.project_id
         }
-        return jwt.encode(json.dumps(token), self.private_key)
+        return self._jwt_fn(json.dumps(token), self.private_key)
+#-endif
 
     def _connect_cb(self, _):
         if self._config_cbk is not None:
+#-if !GOOGLECLOUD_LWMQTT
             self.mqtt.subscribe([['/devices/' + self.device_id + '/config', 1]])
+#-else
+            self.mqtt.subscribe('/devices/' + self.device_id + '/config', self._handle_config)
+#-endif
 
     def publish_event(self, event):
         """
@@ -148,15 +171,24 @@ The Device class
         """
         self.mqtt.publish('/devices/' + self.device_id + '/state', json.dumps(state))
 
+#-if !GOOGLECLOUD_LWMQTT
     def _is_config(self, mqtt_data):
         if ('message' in mqtt_data):
             return (mqtt_data['message'].topic == ('/devices/' + self.device_id + '/config'))
         return False
+#-endif
 
+#-if !GOOGLECLOUD_LWMQTT
     def _handle_config(self, mqtt_client, mqtt_data):
         state_update = self._config_cbk(json.loads(mqtt_data['message'].payload))
         if state_update is not None:
             self.publish_state(state_update)
+#-else
+    def _handle_config(self, mqtt_client, payload):
+        state_update = self._config_cbk(json.loads(payload))
+        if state_update is not None:
+            self.publish_state(state_update)
+#-endif
 
     def on_config(self, config_cbk):
         """
@@ -175,6 +207,12 @@ The Device class
         If the callback returns a dictionary, it will be immediately sent as updated device state.
         """
         if self._config_cbk is None:
+#-if !GOOGLECLOUD_LWMQTT
             self.mqtt.subscribe([['/devices/' + self.device_id + '/config', 1]])
+#-else
+            self.mqtt.subscribe('/devices/' + self.device_id + '/config', self._handle_config)
+#-endif
         self._config_cbk = config_cbk
+#-if !GOOGLECLOUD_LWMQTT
         self.mqtt.on(mqtt.PUBLISH, self._handle_config, self._is_config)
+#-endif
