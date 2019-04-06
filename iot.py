@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-# @Author: lorenzo
-# @Date:   2017-09-21 16:17:16
-# @Last Modified by:   Lorenzo
-# @Last Modified time: 2018-09-05 12:52:46
-
 """
 .. module:: iot
 
@@ -112,6 +106,7 @@ The Device class
         self.mqtt = GCMQTTClient(mqtt_id, 'mqtt.googleapis.com', self.ctx, self._create_jwt, self._connect_cb)
 
         self._config_cbk = None
+        self._command_cbk = None
 
         if custom_jwt is not None:
             self._jwt_fn = custom_jwt
@@ -151,6 +146,14 @@ The Device class
             self.mqtt.subscribe('/devices/' + self.device_id + '/config', self._handle_config)
 #-endif
 
+        if self._command_cbk is not None:
+#-if !GOOGLECLOUD_LWMQTT
+            self.mqtt.subscribe([['/devices/' + self.device_id + '/commands/#', 1]])
+#-else
+            self.mqtt.subscribe('/devices/' + self.device_id + '/commands/#', self._handle_command)
+#-endif
+
+
     def publish_event(self, event):
         """
 .. method:: publish_event(event)
@@ -176,6 +179,11 @@ The Device class
         if ('message' in mqtt_data):
             return (mqtt_data['message'].topic == ('/devices/' + self.device_id + '/config'))
         return False
+
+    def _is_command(self, mqtt_data):
+        if ('message' in mqtt_data):
+            return (mqtt_data['message'].topic.startswith('/devices/' + self.device_id + '/commands'))
+        return False
 #-endif
 
 #-if !GOOGLECLOUD_LWMQTT
@@ -183,11 +191,17 @@ The Device class
         state_update = self._config_cbk(json.loads(mqtt_data['message'].payload))
         if state_update is not None:
             self.publish_state(state_update)
+
+    def _handle_command(self, mqtt_client, mqtt_data):
+        self._command_cbk(json.loads(mqtt_data['message'].payload), mqtt_data['message'].topic[len('/devices/' + self.device_id + '/commands/'):])
 #-else
     def _handle_config(self, mqtt_client, payload):
         state_update = self._config_cbk(json.loads(payload))
         if state_update is not None:
             self.publish_state(state_update)
+
+    def _handle_command(self, mqtt_client, payload):
+        self._command_cbk(json.loads(payload))
 #-endif
 
     def on_config(self, config_cbk):
@@ -215,4 +229,29 @@ The Device class
         self._config_cbk = config_cbk
 #-if !GOOGLECLOUD_LWMQTT
         self.mqtt.on(mqtt.PUBLISH, self._handle_config, self._is_config)
+#-endif
+
+    def on_command(self, command_cbk):
+        """
+.. method:: on_command(command_cbk)
+
+        Set a callback to be called on command.
+
+        :samp:`command_cbk` callback will be called passing the command payload and subfolder::
+
+            def command_callback(command, subfolder):
+                print('requested command payload:', command)
+                print('requested command subfolder:', subfolder)
+
+            my_device.on_command(command_cbk)
+        """
+        if self._command_cbk is None:
+#-if !GOOGLECLOUD_LWMQTT
+            self.mqtt.subscribe([['/devices/' + self.device_id + '/commands/#', 1]])
+#-else
+            self.mqtt.subscribe('/devices/' + self.device_id + '/commands/#', self._handle_command)
+#-endif
+        self._command_cbk = command_cbk
+#-if !GOOGLECLOUD_LWMQTT
+        self.mqtt.on(mqtt.PUBLISH, self._handle_command, self._is_command)
 #-endif
