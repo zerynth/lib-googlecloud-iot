@@ -40,7 +40,7 @@ publish_period = 5000
 # choose an appropriate way to get a valid timestamp (may be available through hardware RTC)
 def get_timestamp():
     user_agent = {"user-agent": "curl/7.56.0"}
-    return json.loads(requests.get('http://now.httpbin.org', headers=user_agent).content)['now']['epoch']
+    return json.loads(requests.get("http://now.zerynth.com/", headers=user_agent).content)['now']['epoch']
 
 # create a google cloud device instance, connect to mqtt broker, set config callback and start mqtt reception loop
 device = iot.Device(device_conf['project_id'], device_conf['cloud_region'], device_conf['registry_id'], device_conf['device_id'], pkey, get_timestamp)

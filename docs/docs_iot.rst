@@ -67,23 +67,11 @@ The Device class
 
         :samp:`config_cbk` callback will be called passing a dictionary containing requested config as the only parameter::
 
-            def config_cbk(config):
+            def config_callback(config):
                 print('requested publish period:', config['publish_period'])
                 return {'publish_period': config['publish_period']}
 
             my_device.on_config(config_cbk)
 
         If the callback returns a dictionary, it will be immediately sent as updated device state.
-        
-.. method:: on_command(command_cbk)
-
-        Set a callback to be called on command.
-
-        :samp:`command_cbk` callback will be called passing the command payload and subfolder::
-
-            def command_cbk(command, subfolder):
-                print('requested command payload:', command)
-                print('requested command subfolder:', subfolder)
-
-            my_device.on_command(command_cbk)
         
