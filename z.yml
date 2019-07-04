@@ -1,0 +1,14 @@
+---
+description: Google Cloud IoT Core support
+fullname: lib.googlecloud.iot
+info:
+    chip_manufacturer: '-'
+    chip_name: '-'
+    name: Zerynth Google Cloud IoT Core Library
+    type: IoT Cloud
+keywords:
+- googlecloud
+- iot
+- cloud
+title: Google Cloud IoT Core Library
+...
