@@ -141,14 +141,14 @@ The Device class
     def _connect_cb(self, _):
         if self._config_cbk is not None:
 #-if !GOOGLECLOUD_LWMQTT
-            self.mqtt.subscribe([['/devices/' + self.device_id + '/config', 1]])
+            self.mqtt.subscribe([['/devices/' + self.device_id + '/config', 0]])
 #-else
             self.mqtt.subscribe('/devices/' + self.device_id + '/config', self._handle_config)
 #-endif
 
         if self._command_cbk is not None:
 #-if !GOOGLECLOUD_LWMQTT
-            self.mqtt.subscribe([['/devices/' + self.device_id + '/commands/#', 1]])
+            self.mqtt.subscribe([['/devices/' + self.device_id + '/commands/#', 0]])
 #-else
             self.mqtt.subscribe('/devices/' + self.device_id + '/commands/#', self._handle_command)
 #-endif
@@ -222,7 +222,7 @@ The Device class
         """
         if self._config_cbk is None:
 #-if !GOOGLECLOUD_LWMQTT
-            self.mqtt.subscribe([['/devices/' + self.device_id + '/config', 1]])
+            self.mqtt.subscribe([['/devices/' + self.device_id + '/config', 0]])
 #-else
             self.mqtt.subscribe('/devices/' + self.device_id + '/config', self._handle_config)
 #-endif
@@ -247,7 +247,7 @@ The Device class
         """
         if self._command_cbk is None:
 #-if !GOOGLECLOUD_LWMQTT
-            self.mqtt.subscribe([['/devices/' + self.device_id + '/commands/#', 1]])
+            self.mqtt.subscribe([['/devices/' + self.device_id + '/commands/#', 0]])
 #-else
             self.mqtt.subscribe('/devices/' + self.device_id + '/commands/#', self._handle_command)
 #-endif
